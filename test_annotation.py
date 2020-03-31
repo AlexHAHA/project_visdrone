@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import cv2
 import pickle as pkl
+from tqdm import tqdm
 
 def generate_colors():
     '''
@@ -11,7 +12,6 @@ def generate_colors():
     colors = pkl.load(open("resources/pallete", "rb"))
     colors = np.array(colors)
     return colors
-
 
 class VisDrone(object):
     '''
@@ -68,12 +68,15 @@ class VisDrone(object):
                 img = cv2.rectangle(img, p1, p2, (int(color[0]),int(color[1]),int(color[2])), 2)
         return img
 
-    def show(self, num=10, delay=1):
+    def ppt(self, num=10, delay=1):
+        '''
+        将图片叠加annotation后进行幻灯片播放
+        '''
         image = self.add_annotation_layer(self.file_imgs[0],self.file_anns[0])
         cv2.imshow(image)
         cv2.waitKey(1000)
 
-    def to_yolo(self, num=10):
+    def visdrone2yolo(self, num=10):
         '''
         将annotation转成yolo格式
         '''
@@ -81,15 +84,24 @@ class VisDrone(object):
         if not os.path.exists(path_labels):
             os.mkdir(path_labels)
 
-        img_width  = 960
-        img_height = 540
-        for i in range(num):
+        # 对所有annotation进行转换
+        if num == -1:
+            num = len(self.file_anns)
+
+        for i in tqdm(range(num)):
             try:
                 anno_file = self.file_anns[i]
+                img_file  = self.file_imgs[i]
+                #获取图片大小
+                img = cv2.imread(os.path.join(self.path_images, img_file))
+                img_height,img_width = img.shape[:2]
                 #读取visdrone的annotation
                 labels = self.read_annotation(os.path.join(self.path_annotations, anno_file))
                 labels_str = ""
                 for lbl in labels:
+                    #如果bbox没有包含目标则忽略
+                    if lbl[4]<1:
+                        continue
                     c_x = lbl[0]+lbl[2]/2
                     c_y = lbl[1]+lbl[3]/2
                     lbl_str = "{} {:.4f} {:.4f} {:.4f} {:.4f}\n".format(int(lbl[5]),c_x/img_width,c_y/img_height,
@@ -98,7 +110,7 @@ class VisDrone(object):
                 #新建yolo的label文件，并写入yolo格式的label
                 with open(os.path.join(path_labels, anno_file),'w') as anno_f:
                     anno_f.write(labels_str)
-                print(f"finished {anno_file}")
+                #print(f"finished {anno_file}")
             except Exception as e:
                 print(f"to_yolo error:{e}")
                 print(f"{anno_file}")
@@ -106,5 +118,5 @@ class VisDrone(object):
 
 if __name__ == '__main__':
     visdrone = VisDrone()
-    visdrone.to_yolo(3)
+    visdrone.visdrone2yolo(-1)
 
