@@ -1,4 +1,0 @@
-classes= 3
-train=data/cetca_train/train.txt
-valid=data/cetca_train/valid.txt
-names=data/cetca_train/classes.names
