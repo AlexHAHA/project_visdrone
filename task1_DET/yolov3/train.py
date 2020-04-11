@@ -23,7 +23,8 @@ import torch.optim as optim
 
 path_checkpoints        = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\checkpoints"
 #path_outputs            = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\outputs"
-path_pretrained_weights = r"D:\deeplearning\temp\yolov3-tiny.weights"
+#path_pretrained_weights = r"D:\deeplearning\temp\yolov3-tiny.weights"
+path_pretrained_weights = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\checkpoints1\yolov3-tiny_9.pth"
 path_data_config        = r"config\vis_drone.data"
 path_model_def          = r"config\yolov3-tiny.cfg"
 # for yolov3 set batch_size=4, for yolov3-tiny set batch_size=8
@@ -32,7 +33,7 @@ batch_size_yolo         = 4
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs",                 type=int, default=10,                    help="number of epochs")
+    parser.add_argument("--epochs",                 type=int, default=100,                    help="number of epochs")
     parser.add_argument("--batch_size",             type=int, default=batch_size_yolo_tiny,   help="size of each image batch")
     parser.add_argument("--gradient_accumulations", type=int, default=2,                      help="number of gradient accums before step")
     parser.add_argument("--model_def",              type=str, default=path_model_def,         help="path to model definition file")

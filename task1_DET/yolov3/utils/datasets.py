@@ -109,6 +109,7 @@ class ListDataset(Dataset):
         label_path = self.label_files[index % len(self.img_files)].rstrip()
 
         targets = None
+        boxes   = None
         if os.path.exists(label_path):
             boxes = torch.from_numpy(np.loadtxt(label_path).reshape(-1, 5))
             # Extract coordinates for unpadded + unscaled image
@@ -133,7 +134,15 @@ class ListDataset(Dataset):
         # Apply augmentations
         if self.augment:
             if np.random.random() < 0.5:
-                img, targets = horisontal_flip(img, targets)
+                # 在训练visdrone数据集时发现这步有时候会出现如下错误：(已解决)
+                # targets[:, 2] = 1 - targets[:, 2]
+                # TypeError: 'NoneType' object is not subscriptable
+                try:
+                    img, targets = horisontal_flip(img, targets)
+                except:
+                    print(f"datasets.py: img_path={img_path}")
+                    print(f"targets={targets}")
+                    print(f"boxes={boxes}")
 
         return img_path, img, targets
 

@@ -41,6 +41,7 @@ class VisDrone(object):
         #将标签存放为nparray
         labels = np.zeros((len(lbls), 8))
         for i,lbl in enumerate(lbls):
+            lbl = lbl.rstrip(', \n')
             res = [int(num) for num in lbl.split(',')]
             labels[i,:] = np.array(res)
         return labels
@@ -140,7 +141,7 @@ class VisDrone(object):
 
 if __name__ == '__main__':
     visdrone = VisDrone()
-    #visdrone.visdrone2yolo(-1)
+    visdrone.visdrone2yolo(-1)
     #visdrone.generate_file('train.txt')
-    visdrone.ppt()
+    #visdrone.ppt()
 
