@@ -1,3 +1,8 @@
+"""
+1、将visdrone的annotation转为yolov3的label
+2、对visdrone的图片进行annotation叠加，观看效果
+3、将所有的图片路径存放在一个train.txt中
+"""
 import os
 import numpy as np
 import torch
