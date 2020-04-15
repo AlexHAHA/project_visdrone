@@ -1,3 +1,12 @@
+"""
+用于yolov3模型的训练。
+操作步骤：
+1）在同一目录（你存放训练数据的目录）下建立images文件夹、labels文件夹、train.txt，并且将images中的所有图片写入至train.txt。
+2）在本代码同级目录下的yolov3/config中建立.data文件。
+3）在yolov3/config准备模型bone配置文件.cfg。
+4）准备训练集类别名称对应的classes.names文件。
+5）准备模型预先训练好的参数文件。
+"""
 from __future__ import division
 from models import *
 from utils.utils import *

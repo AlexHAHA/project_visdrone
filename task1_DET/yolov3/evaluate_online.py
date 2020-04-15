@@ -1,3 +1,7 @@
+"""
+在验证集进行测试，得到每个类别的AP，并计算mAP。计算过程中完全使用yolov3文件夹中的相关函数。
+不保存预测的结果。
+"""
 from __future__ import division
 
 from models import *
@@ -55,19 +59,22 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
 
     return precision, recall, AP, f1, ap_class
 
-
+path_weights = r""
+path_data_config = r""
+path_model_def   = r""
+path_class_names = r""
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", type=int, default=8, help="size of each image batch")
-    parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
-    parser.add_argument("--data_config", type=str, default="config/coco.data", help="path to data config file")
-    parser.add_argument("--weights_path", type=str, default="weights/yolov3.weights", help="path to weights file")
-    parser.add_argument("--class_path", type=str, default="data/coco.names", help="path to class label file")
-    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.001, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
-    parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
+    parser.add_argument("--batch_size",   type=int,   default=8,                help="size of each image batch")
+    parser.add_argument("--model_def",    type=str,   default=path_model_def,   help="path to model definition file")
+    parser.add_argument("--data_config",  type=str,   default=path_data_config, help="path to data config file")
+    parser.add_argument("--weights_path", type=str,   default=path_weights,     help="path to weights file")
+    parser.add_argument("--class_path",   type=str,   default=path_class_names, help="path to class label file")
+    parser.add_argument("--iou_thres",    type=float, default=0.5,              help="iou threshold required to qualify as detected")
+    parser.add_argument("--conf_thres",   type=float, default=0.001,            help="object confidence threshold")
+    parser.add_argument("--nms_thres",    type=float, default=0.5,              help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--n_cpu",        type=int,   default=8,                help="number of cpu threads to use during batch generation")
+    parser.add_argument("--img_size",     type=int,   default=416,              help="size of each image dimension")
     opt = parser.parse_args()
     print(opt)
 
