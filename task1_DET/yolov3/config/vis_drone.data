@@ -1,3 +1,4 @@
 classes= 11
 train=H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\train.txt
+valid=H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val\valid.txt
 names=H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\classes.names

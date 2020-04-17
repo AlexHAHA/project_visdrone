@@ -1,6 +1,7 @@
 """
 在验证集进行测试，得到每个类别的AP，并计算mAP。计算过程中完全使用yolov3文件夹中的相关函数。
-不保存预测的结果。
+1、detection与target直接进行比较
+2、不保存预测的结果。
 """
 from __future__ import division
 
@@ -59,10 +60,11 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
 
     return precision, recall, AP, f1, ap_class
 
-path_weights = r""
-path_data_config = r""
-path_model_def   = r""
-path_class_names = r""
+path_weights     = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\yolov3-tiny_99.pth"
+path_class_names = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\classes.names"
+path_model_def   = r"config\yolov3-tiny.cfg"
+path_data_config = r"config\vis_drone.data"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size",   type=int,   default=8,                help="size of each image batch")
