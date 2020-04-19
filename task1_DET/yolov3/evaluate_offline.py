@@ -14,6 +14,7 @@ import shutil
 import datetime
 import argparse
 
+import pickle as pkl
 from PIL import Image
 
 import torch
@@ -32,7 +33,6 @@ def generate_colors():
     pallete_path = os.path.abspath(os.path.join(current_path,"..\\.."))
     pallete_file = os.path.join(pallete_path,"resources\\pallete")
     colors = pkl.load(open(pallete_file, "rb"))
-    colors = np.array(colors)
     return colors
 
 class YoloDetect():
@@ -42,6 +42,7 @@ class YoloDetect():
                        path_detection_results,
                        img_size=416,
                 ):
+        self.flag_show     = True
         self.frame         = None
         self.detections    = [None]
         #
@@ -138,7 +139,7 @@ class YoloDetect():
         基础识别功能函数，输入frame，输出识别结果
         '''
         #print(f"detect.py,detect: {frame.shape}")
-        img, original_img = self.prepare_image2(frame, self.img_size)
+        img, original_img = self.prepare_image(frame, self.img_size)
         #cv2.imshow('prepare img', img)
         #cv2.waitKey(200)
         input_img = Variable(img.type(self.Tensor))
@@ -151,43 +152,87 @@ class YoloDetect():
             detections = non_max_suppression(detections, self.conf_thres, self.nms_thres)
         return detections
 
-    def detect_picfile(self, pic_file):
+    def get_img_bboxs(self, img, detections, in_dim):
         '''
-        识别单张图片
-        '''        
-        process_img = None
-        frame       = cv2.imread(pic_file)
-        #
-        prev_time   = time.time()
-        detections  = self.detect(frame)
+        获取在原始图片上对应的bbox，并且叠加检测效果
+        Args:
+            img:       原始图片
+            detection: yolov3输出的bounding box
+            in_dim:    yolov3输出图片大小
+        Returns:
+            img: 叠加bbox后的图片
+            bbox: 检测结果
+        '''
+        h,w = img.shape[:2]
+        #print(h,w)
+        detections = detections[0].numpy()
+        #print(detections.shape)
+        diff_dim = int(np.abs(h - w)/2)
+        scaler = (h / in_dim) if h>w else (w / in_dim)
+        #print('scaler is: ',scaler)
         #print(detections)
-        if detections[0] is not None:
-            process_img = self.add_layer1(frame, detections, self.img_size)
-            #cv2.imshow('img', process_img)
-            img_show = cv2.cvtColor(process_img, cv2.COLOR_BGR2RGB)
-        else:
-            img_show = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        # fill results
-        results                  = {}
-        results['fps']           = 1 / (time.time()-prev_time)
-        results['detections']    = detections
-        results['processed_img'] = img_show
-        results['height'], results['width'] = img_show.shape[:2]
+        obj_numbers = detections.shape[0]
+        bboxs = np.zeros((obj_numbers, 6))
+        for i in range(obj_numbers):
+            detect = detections[i]
+            label = self.class_names[int(detect[-1])]
+            if h > w:
+                p1 = (int(detect[0] * scaler) - diff_dim, int(detect[1] * scaler))
+                p2 = (int(detect[2] * scaler) - diff_dim, int(detect[3] * scaler))
+            else:
+                p1 = (int(detect[0] * scaler), int(detect[1] * scaler) - diff_dim)
+                p2 = (int(detect[2] * scaler), int(detect[3] * scaler) - diff_dim)
+            cv2.rectangle(img, p1, p2, self.class_colors[int(detect[-1])],2)
+            cv2.putText(img, label, p1, cv2.FONT_HERSHEY_PLAIN, 1.0,
+                                    self.class_colors[int(detect[-1])], 2)
+            bboxs[i] = np.array([int(detect[-1]), detect[-2], p1[0], p1[1], p2[0], p2[1]])
+        return img, bboxs
 
-    def write_detections_tofile(detections, dr_file):
-        pass
+    def save_txt(self, f_name, datas, fmts):
+        with open(f_name, 'w') as f:
+            for x in datas:
+                line = "{} {:.2f} {} {} {} {}\n".format(int(x[0]),x[1], int(x[2]), int(x[3]), int(x[4]), int(x[5]))
+                f.write(line)
+            '''
+            for x in datas:
+                line = ""
+                for i,fmt in enumerate(fmts):
+                    line += fmt.format(x[i])
+                line += "\n"
+                f.write(line)
+            '''
 
-    def evalute1(self, imgs_folder):
+    def evalute1(self):
         """
-        对图片进行检测并保存结果至detect_results文件夹中
+        对文件夹中的一张张图片进行检测（推理inference），
+        并保存结果至detect_results文件夹中
         """
-        for img_file in self.valid_path:
+        img_files = []
+        with open(self.valid_path) as f:
+            img_files = f.readlines()
+            img_files = [x.rstrip() for x in img_files]
+        #print(img_files)
+        for img_file in img_files:
+            print(img_file)
             img_name = os.path.basename(img_file)
-            dr_file  = os.path.join(self.path_detection_results, 
+            # 保存inference后的bbox
+            dr_bbox_file  = os.path.join(self.path_detection_results, 'labels', 
                                     img_name.replace('.png','.txt').replace('.jpg','.txt'))
+            # 保存inference后叠加bbox的图像
+            dr_img_file   = os.path.join(self.path_detection_results, 'images', img_name)
             img = cv2.imread(img_file)
-            
 
+            detections = self.detect(img)
+            if detections[0] is not None:
+                img, bboxs = self.get_img_bboxs(img, detections, self.img_size)
+                img        = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                cv2.imwrite(dr_img_file, img)
+                #np.savetxt(dr_bbox_file, bboxs, delimiter=' ', fmt='%d')
+                self.save_txt(dr_bbox_file, bboxs, ["{:d}","{:.2f}","{:d}","{:d}","{:d}","{:d}"])
+                if self.flag_show:
+                    cv2.imshow('res', img)
+                    cv2.waitKey(1000)
+           
 
     def detect_picfolder(self, pic_path):
         '''
@@ -240,14 +285,15 @@ path_detection_results = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Dete
 if __name__ == "__main__":
     if os.path.exists(path_detection_results):
         shutil.rmtree(path_detection_results)
-    else:
-        os.mkdir(path_detection_results)
-
-    yolodetect = YoloDetect(model=path_model_def,
+    os.mkdir(path_detection_results)
+    os.mkdir(os.path.join(path_detection_results, 'labels'))
+    os.mkdir(os.path.join(path_detection_results, 'images'))
+    
+    yolodetect = YoloDetect(model_def=path_model_def,
                             data_config=path_data_config,
                             path_detection_results=path_detection_results,
                             file_pretrained_weights=path_weights)
-    
+    yolodetect.evalute1()
 
     
 

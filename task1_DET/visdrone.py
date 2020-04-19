@@ -1,7 +1,8 @@
 """
+功能：
 1、将visdrone的annotation转为yolov3的label
 2、对visdrone的图片进行annotation叠加，观看效果
-3、将所有的图片路径存放在一个train.txt中
+3、将所有的图片路径存放在一个.txt中
 """
 import os
 import numpy as np
@@ -29,7 +30,8 @@ class VisDrone(object):
     '''
     def __init__(self):
         #self.path_base        = r"D:\CETCA_DeepLearning\Task 1 - Object Detection in Images\VisDrone2019-DET-train"
-        self.path_base        = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train"
+        #self.path_base        = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train"
+        self.path_base        = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val"
         self.path_images      = os.path.join(self.path_base, "images")
         self.path_annotations = os.path.join(self.path_base, "annotations") 
 
@@ -81,13 +83,14 @@ class VisDrone(object):
             img = cv2.rectangle(img, p1, p2, (int(color[0]),int(color[1]),int(color[2])), 2)
         return img
 
-    def ppt(self, num=10, delay=1):
+    def ppt(self, num=10, delay=1000):
         '''
         将图片叠加annotation后进行幻灯片播放
         '''
-        image = self.add_annotation_layer(self.file_imgs[0],self.file_anns[0])
-        cv2.imshow('visdrone',image)
-        cv2.waitKey(10000)
+        for i in range(num):
+            image = self.add_annotation_layer(self.file_imgs[i],self.file_anns[i])
+            cv2.imshow('visdrone',image)
+            cv2.waitKey(delay)
 
     def visdrone2yolo(self, num=10):
         '''
@@ -146,7 +149,8 @@ class VisDrone(object):
 
 if __name__ == '__main__':
     visdrone = VisDrone()
-    visdrone.visdrone2yolo(-1)
+    #visdrone.visdrone2yolo(-1)
     #visdrone.generate_file('train.txt')
-    #visdrone.ppt()
+    #visdrone.generate_file('valid.txt')
+    visdrone.ppt()
 

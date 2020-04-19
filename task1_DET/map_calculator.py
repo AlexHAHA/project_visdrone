@@ -1,17 +1,20 @@
 """
 mAP calculator
 """
-import os,sys
-import glob,shutil
+import os
+import sys
+import glob
+import shutil
 import json
+import operator
 
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-# 图片坐标系
 '''
+    # 图片坐标系
     0,0 ------> x (width)
      |
      |  (Left,Top)
@@ -21,6 +24,8 @@ import matplotlib.pyplot as plt
      y      |_________|
   (height)            *
                 (Right,Bottom)
+    annotation: class, conf, bbox
+    bbox: (left-top_x, left-top_y, right-bottom_x, right-bottom_y), the unit is pixel
 '''
 class MAP_Calculator(object):
     """
@@ -54,19 +59,27 @@ class MAP_Calculator(object):
         os.mkdir(self.path_output_temp)
         os.mkdir(self.path_output_class)
 
-        # 记录每类的目标数量
+        # 记录ground_truth每类的目标数量
         self.gt_counter_per_class = {}
         # 记录出现每类目标的图片数量，即一个类别共出现在多少张图片中
         self.gt_counter_images_per_class = {}
         # ground_truth中出现的所有目标的类别的idx
         self.gt_classes_idx = []
+
+        # 记录detection_results每类目标的数量
+        self.dr_counter_per_class = {}
+        # detection_results中出现的所有目标的类别的idx
+        self.dr_classes_idx = []
         
         self.class_names = self.load_classnames()
+        self.n_classes   = len(self.class_names)
         #print(self.class_names)
         self.ap_dictionary = {}
 
-        # 
+        # 记录每类检测结果为tp的目标数量
         self.count_true_positives = {}
+
+        self.mAP = 0.0
 
     def load_classnames(self):
         with open(self.file_class_names,'r') as f:
@@ -128,6 +141,21 @@ class MAP_Calculator(object):
         '''
         self.files_dr = glob.glob(self.path_dr + r"\*.txt")
         self.files_dr.sort()
+
+        # 先统计一下每个类别的目标数量
+        for txt_file in self.files_dr:
+            file_id = os.path.basename(txt_file).split(".txt",1)[0]
+            txt_path_dr = os.path.join(self.path_dr, txt_file)
+            lines = np.loadtxt(txt_path_dr)
+            for line in lines:
+                tmp_class_name_idx = int(line[0])
+
+                # 
+                if tmp_class_name_idx in self.dr_counter_per_class:
+                    self.dr_counter_per_class[tmp_class_name_idx] += 1
+                else:
+                    self.dr_counter_per_class[tmp_class_name_idx] = 1
+        self.dr_classes_idx = list(self.dr_counter_per_class.keys())
 
         #把每个类别的所有目标的信息汇总起来
         for class_idx in self.gt_classes_idx:
@@ -221,17 +249,19 @@ class MAP_Calculator(object):
                             gt_match['used'] = True
                             tp[idx] = 1
                             self.count_true_positives[class_idx] += 1
-                            print(f'match')
+                            #print(f'match')
                         else:
                             pass
                             fp[idx] = 1
-                            print(f'repeat match')
+                            #print(f'repeat match')
                     else:
                         fp[idx] = 1
                         if ovmax > 0:
-                            print('insufficient overlap')
+                            pass
+                            #print('insufficient overlap')
                         else:
-                            print(f'ovmax={ovmax}')
+                            pass
+                            #print(f'ovmax={ovmax}')
 
                 # compute precision/recall
                 cumsum = 0
@@ -242,8 +272,8 @@ class MAP_Calculator(object):
                 for idx, val in enumerate(tp):
                     tp[idx] += cumsum
                     cumsum += val
-                print(f'tp={tp}')
-                print(f'fp={fp}')
+                #print(f'tp={tp}')
+                #print(f'fp={fp}')
                 rec = tp[:]
                 for idx, val in enumerate(tp):
                     rec[idx] = float(tp[idx]) / self.gt_counter_per_class[class_idx]
@@ -262,6 +292,100 @@ class MAP_Calculator(object):
                                         "\n Recall: " + str(rounded_rec))
                 output_file.write("\n")
                 self.ap_dictionary[class_idx] = ap
+        
+            self.mAP = sum_AP / self.n_classes
+            text = "mAP = {0:.2f}%".format(self.mAP*100)
+            output_file.write(text + "\n")
+        
+    def draw_ground_truth_info(self):
+        """
+        Plot the total number of occurences of each class in the ground-truth
+        """ 
+        window_title = "ground_truth_info"
+        plot_title   = "ground_truth\n"
+        plot_title  += "(" + str(len(self.files_gt)) + "files and " + str(self.n_classes) + "classes)"
+        x_label      = "Number of objects per class"
+        output_path  = self.path_output + "/ground_truth_info.png"
+        to_show      = False
+        plot_color   = "forestgreen"
+
+        #
+        self.gt_counter_per_class_withnames = {self.class_names[key]:value for (key,value) in 
+                                                self.gt_counter_per_class.items()}
+        #
+        self.draw_plot_func(
+            self.gt_counter_per_class_withnames,
+            self.n_classes,
+            window_title,
+            plot_title,
+            x_label,
+            output_path,
+            to_show,
+            plot_color,
+            '',
+            )
+
+    def draw_detection_results_info(self):
+        """
+        Plot the total number of occurences of each class in the "detection-results" folder
+        and show the number of true positive
+        """
+        window_title = "detection_results_info"
+        # Plot title
+        plot_title   = "detection_results\n"
+        plot_title  += "(" + str(len(self.files_dr)) + " files and "
+        cnt_nonzero  = sum(int(x) > 0 for x in list(self.dr_counter_per_class.values()))
+        plot_title  += str(cnt_nonzero) + " detected classes)"
+        # end Plot title
+        x_label      = "Number of objects per class"
+        output_path  = self.path_output + "/detection_results_info.png"
+        to_show      = False
+        plot_color   = 'forestgreen'
+        #
+        self.dr_counter_per_class_withnames = {self.class_names[key]:value for (key,value) in 
+                                                self.dr_counter_per_class.items()}
+        self.count_true_positives_withnames = {self.class_names[key]:value for (key,value) in 
+                                                self.count_true_positives.items()}
+
+        true_p_bar   = self.count_true_positives_withnames
+        #
+        self.draw_plot_func(
+            self.dr_counter_per_class_withnames,
+            len(self.dr_counter_per_class_withnames),
+            window_title,
+            plot_title,
+            x_label,
+            output_path,
+            to_show,
+            plot_color,
+            true_p_bar
+            )
+
+    def draw_map(self):
+        """
+        Draw mAP plot (Show AP's of all classes in decreasing order)
+        """
+        window_title = "mAP"
+        plot_title = "mAP = {0:.2f}%".format(self.mAP*100)
+        x_label = "Average Precision"
+        output_path = self.path_output + "/mAP.png"
+        to_show = False
+        plot_color = 'royalblue'
+        #
+        self.ap_dictionary_withnames = {self.class_names[key]:value for (key,value) in 
+                                                self.ap_dictionary.items()}
+        #
+        self.draw_plot_func(
+            self.ap_dictionary_withnames,
+            self.n_classes,
+            window_title,
+            plot_title,
+            x_label,
+            output_path,
+            to_show,
+            plot_color,
+            ""
+            )
 
     def ap(self, rec, prec):
         '''
@@ -293,9 +417,115 @@ class MAP_Calculator(object):
             ap += ((mrec[i]-mrec[i-1])*mpre[i])
         return ap, mrec, mpre
 
-    def draw_ap(self):
-        pass
-        
+    def adjust_axes(self, r, t, fig, axes):
+        """
+        Plot - adjust axes
+        """
+        # get text width for re-scaling
+        bb = t.get_window_extent(renderer=r)
+        text_width_inches = bb.width / fig.dpi
+        # get axis width in inches
+        current_fig_width = fig.get_figwidth()
+        new_fig_width = current_fig_width + text_width_inches
+        propotion = new_fig_width / current_fig_width
+        # get axis limit
+        x_lim = axes.get_xlim()
+        axes.set_xlim([x_lim[0], x_lim[1]*propotion])
+
+    def draw_plot_func(self, dictionary, n_classes, window_title, plot_title, x_label, output_path, to_show, plot_color, true_p_bar):
+        """
+        Draw plot using Matplotlib
+        """    
+        #print(dictionary)
+        # sort the dictionary by decreasing value, into a list of tuples
+        sorted_dic_by_value = sorted(dictionary.items(), key=operator.itemgetter(1))
+        # unpacking the list of tuples into two lists
+        sorted_keys, sorted_values = zip(*sorted_dic_by_value)
+        # 
+        if true_p_bar != "":
+            """
+            Special case to draw in:
+                - green -> TP: True Positives (object detected and matches ground-truth)
+                - red -> FP: False Positives (object detected but does not match ground-truth)
+                - pink -> FN: False Negatives (object not detected but present in the ground-truth)
+            """
+            fp_sorted = []
+            tp_sorted = []
+            for key in sorted_keys:
+                fp_sorted.append(dictionary[key] - true_p_bar[key])
+                tp_sorted.append(true_p_bar[key])
+            plt.barh(range(n_classes), fp_sorted, align='center', color='crimson', label='False Positive')
+            plt.barh(range(n_classes), tp_sorted, align='center', color='forestgreen', label='True Positive', left=fp_sorted)
+            # add legend
+            plt.legend(loc='lower right')
+            """
+            Write number on side of bar
+            """
+            fig = plt.gcf() # gcf - get current figure
+            axes = plt.gca()
+            r = fig.canvas.get_renderer()
+            for i, val in enumerate(sorted_values):
+                fp_val = fp_sorted[i]
+                tp_val = tp_sorted[i]
+                fp_str_val = " " + str(fp_val)
+                tp_str_val = fp_str_val + " " + str(tp_val)
+                # trick to paint multicolor with offset:
+                # first paint everything and then repaint the first number
+                t = plt.text(val, i, tp_str_val, color='forestgreen', va='center', fontweight='bold')
+                plt.text(val, i, fp_str_val, color='crimson', va='center', fontweight='bold')
+                if i == (len(sorted_values)-1): # largest bar
+                    self.adjust_axes(r, t, fig, axes)
+        else:
+            plt.barh(range(n_classes), sorted_values, color=plot_color)
+            """
+            Write number on side of bar
+            """
+            fig = plt.gcf() # gcf - get current figure
+            axes = plt.gca()
+            r = fig.canvas.get_renderer()
+            for i, val in enumerate(sorted_values):
+                str_val = " " + str(val) # add a space before
+                if val < 1.0:
+                    str_val = " {0:.2f}".format(val)
+                t = plt.text(val, i, str_val, color=plot_color, va='center', fontweight='bold')
+                # re-set axes to show number inside the figure
+                if i == (len(sorted_values)-1): # largest bar
+                    self.adjust_axes(r, t, fig, axes)
+        # set window title
+        fig.canvas.set_window_title(window_title)
+        # write classes in y axis
+        tick_font_size = 12
+        plt.yticks(range(n_classes), sorted_keys, fontsize=tick_font_size)
+        """
+        Re-scale height accordingly
+        """
+        init_height = fig.get_figheight()
+        # comput the matrix height in points and inches
+        dpi = fig.dpi
+        height_pt = n_classes * (tick_font_size * 1.4) # 1.4 (some spacing)
+        height_in = height_pt / dpi
+        # compute the required figure height 
+        top_margin = 0.15 # in percentage of the figure height
+        bottom_margin = 0.05 # in percentage of the figure height
+        figure_height = height_in / (1 - top_margin - bottom_margin)
+        # set new height
+        if figure_height > init_height:
+            fig.set_figheight(figure_height)
+
+        # set plot title
+        plt.title(plot_title, fontsize=14)
+        # set axis titles
+        # plt.xlabel('classes')
+        plt.xlabel(x_label, fontsize='large')
+        # adjust size of window
+        fig.tight_layout()
+        # save the plot
+        fig.savefig(output_path)
+        # show image
+        if to_show:
+            plt.show()
+        # close the plot
+        plt.close()        
 
 if __name__ == '__main__':
     mc = MAP_Calculator()
