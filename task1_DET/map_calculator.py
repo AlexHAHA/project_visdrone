@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-'''
+"""
     # 图片坐标系
     0,0 ------> x (width)
      |
@@ -26,17 +26,19 @@ import matplotlib.pyplot as plt
                 (Right,Bottom)
     annotation: class, conf, bbox
     bbox: (left-top_x, left-top_y, right-bottom_x, right-bottom_y), the unit is pixel
-'''
+
+"""
 class MAP_Calculator(object):
     """
+    需要设定目标文件夹的基本路径，其目录如下：
     folder(path_base):
     |--ground_truth
     |--detection_results
     |--images
     """
     MINOVERLAP = 0.5
-    def __init__(self):
-        self.path_base = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\mAP"
+    def __init__(self, path_mAP):
+        self.path_base = path_mAP
         self.path_gt   = os.path.join(self.path_base, 'input', 'ground_truth')
         self.path_dr   = os.path.join(self.path_base, 'input', 'detection_results')
         self.path_img  = os.path.join(self.path_base, 'input', 'images')
@@ -72,6 +74,8 @@ class MAP_Calculator(object):
         self.dr_classes_idx = []
         
         self.class_names = self.load_classnames()
+        #print(f"{len(self.class_names)}")
+        #print(f"{self.class_names}")
         self.n_classes   = len(self.class_names)
         #print(self.class_names)
         self.ap_dictionary = {}
@@ -80,12 +84,23 @@ class MAP_Calculator(object):
         self.count_true_positives = {}
 
         self.mAP = 0.0
+        self.load_gt_data()
+        self.load_dr_data()
 
     def load_classnames(self):
         with open(self.file_class_names,'r') as f:
             lines = f.readlines()
             class_names = [line.rstrip() for line in lines]
         return class_names
+
+    def __load_txt(self, file_path):
+        '''
+        使用numpy加载txt，对只有一行的进行处理
+        '''
+        datas = np.loadtxt(file_path)
+        if len(datas.shape) == 1:
+            datas = np.expand_dims(datas, 0)
+        return datas
 
     def load_gt_data(self):
         '''
@@ -98,7 +113,7 @@ class MAP_Calculator(object):
 
         # 用于存放ground_truth信息，便于后续AP计算时使用
         self.gt_files_infos = {}
-        for txt_file in self.files_gt:
+        for i, txt_file in enumerate(self.files_gt):
             file_id     = os.path.basename(txt_file).split(".txt",1)[0]
             txt_path_gt = os.path.join(self.path_gt, txt_file)
             txt_path_dr = os.path.join(self.path_dr, txt_file)
@@ -109,7 +124,7 @@ class MAP_Calculator(object):
             #
             already_seen_classes = []
             #
-            lines = np.loadtxt(txt_path_gt)
+            lines = self.__load_txt(txt_path_gt)
             # 记录每个gt_file的信息
             infos = []
             for line in lines:
@@ -130,7 +145,11 @@ class MAP_Calculator(object):
             #print(self.gt_counter_images_per_class)
 
             self.gt_files_infos[file_id] = infos
-        print(f'gt info={self.gt_files_infos}')
+            #print(f"file_id:{file_id}, infos:{infos}")
+            #if i%10 == 0:
+            #    break
+
+        #print(f'gt info={self.gt_files_infos}')
         self.gt_classes_idx = list(self.gt_counter_per_class.keys())
         self.n_classes      = len(self.gt_classes_idx)
 
@@ -146,8 +165,10 @@ class MAP_Calculator(object):
         for txt_file in self.files_dr:
             file_id = os.path.basename(txt_file).split(".txt",1)[0]
             txt_path_dr = os.path.join(self.path_dr, txt_file)
-            lines = np.loadtxt(txt_path_dr)
+            lines = self.__load_txt(txt_path_dr)
             for line in lines:
+                #print(f'file:{os.path.basename(txt_file)}')
+                #print(f'line:{line}')
                 tmp_class_name_idx = int(line[0])
 
                 # 
@@ -170,7 +191,7 @@ class MAP_Calculator(object):
                     print(f"Error: corespond file {txt_file} not exist in ground_truth folder")
                     continue
                 #
-                lines = np.loadtxt(txt_path_dr)
+                lines = self.__load_txt(txt_path_dr)
                 for line in lines:
                     tmp_class_name_idx = int(line[0])
                     confidence         = float(line[1])
@@ -213,7 +234,7 @@ class MAP_Calculator(object):
                     # open ground-truth with that file_id
                     gt_file = os.path.join(self.path_gt, file_id+'.txt')
 
-                    #gt_datas = np.loadtxt(gt_file)
+                    #gt_datas = self.__load_txt(gt_file)
                     gt_datas = self.gt_files_infos[file_id]
 
                     ovmax = -1
@@ -228,18 +249,20 @@ class MAP_Calculator(object):
                             #bbox_gt = gt_data[1:]
                             bbox_gt = gt_data['bbox']
                             bi = [max(bbox_dr[0],bbox_gt[0]), max(bbox_dr[1],bbox_gt[1]),
-                                  max(bbox_dr[2],bbox_gt[2]), max(bbox_dr[3],bbox_gt[3])]
+                                  min(bbox_dr[2],bbox_gt[2]), min(bbox_dr[3],bbox_gt[3])]
                             iw = bi[2] - bi[0] + 1
                             ih = bi[3] - bi[1] + 1
                             if iw > 0 and ih > 0:
-                                ua = (bbox_dr[2]-bbox_dr[0]+1) * (bbox_dr[3]-bbox_dr[1]+1) +\
-                                     (bbox_gt[2]-bbox_gt[0]+1) * (bbox_gt[3]-bbox_gt[1]+1) -\
-                                     iw * ih
-                                ov = iw*ih / ua
+                                ua = ((bbox_dr[2]-bbox_dr[0]+1) * (bbox_dr[3]-bbox_dr[1]+1) +
+                                    (bbox_gt[2]-bbox_gt[0]+1) * (bbox_gt[3]-bbox_gt[1]+1) -
+                                    iw * ih)
+                                
+                                ov = iw*ih / ua                         
                                 if ov > ovmax:
                                     ovmax = ov 
                                     # 由于gt_data是dict类型，后续改变gt_match就会对gt_data进行改变
                                     gt_match = gt_data
+    
                     # set minimum overlap
                     min_overlap = self.MINOVERLAP
 
@@ -300,6 +323,7 @@ class MAP_Calculator(object):
     def draw_ground_truth_info(self):
         """
         Plot the total number of occurences of each class in the ground-truth
+        保存为output/ground_truth_info.png
         """ 
         window_title = "ground_truth_info"
         plot_title   = "ground_truth\n"
@@ -329,6 +353,7 @@ class MAP_Calculator(object):
         """
         Plot the total number of occurences of each class in the "detection-results" folder
         and show the number of true positive
+        保存为output/detection_results_info.png
         """
         window_title = "detection_results_info"
         # Plot title
@@ -364,6 +389,7 @@ class MAP_Calculator(object):
     def draw_map(self):
         """
         Draw mAP plot (Show AP's of all classes in decreasing order)
+        保存为output/mAP.png
         """
         window_title = "mAP"
         plot_title = "mAP = {0:.2f}%".format(self.mAP*100)
@@ -527,5 +553,11 @@ class MAP_Calculator(object):
         # close the plot
         plt.close()        
 
+path_mAP = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val\mAP"
 if __name__ == '__main__':
-    mc = MAP_Calculator()
+    mc = MAP_Calculator(path_mAP)
+    mc.ap_calculate()
+    mc.draw_detection_results_info()
+    mc.draw_ground_truth_info()
+    mc.draw_map()
+

@@ -225,19 +225,19 @@ class YoloDetect():
             detections = self.detect(img)
             if detections[0] is not None:
                 img, bboxs = self.get_img_bboxs(img, detections, self.img_size)
-                img        = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 cv2.imwrite(dr_img_file, img)
                 #np.savetxt(dr_bbox_file, bboxs, delimiter=' ', fmt='%d')
                 self.save_txt(dr_bbox_file, bboxs, ["{:d}","{:.2f}","{:d}","{:d}","{:d}","{:d}"])
                 if self.flag_show:
-                    cv2.imshow('res', img)
-                    cv2.waitKey(1000)
+                    cv2.imshow('detecting result', img)
+                    cv2.waitKey(100)
            
 
-    def detect_picfolder(self, pic_path):
+    def evalute2(self, pic_path):
         '''
-        识别文件夹内的多张图片，一张一张地处理图片
+        使用dataloader加载图片，每次只加载一张进行识别。
         '''
+        
         self.model.eval()
         dataloader = DataLoader(
                     ImageFolder(pic_path, img_size=self.img_size),
@@ -245,36 +245,52 @@ class YoloDetect():
                     shuffle=False,
                     num_workers=0,
         )
-        imgs           = []
-        img_detections = []
-        prev_time      = time.time()
+        
+        #prev_time      = time.time()
         for batch_i, (img_paths, input_imgs) in enumerate(dataloader):
             print(f'batch_i:{batch_i}')
+            #print(f"type:{type(input_imgs)},shape:{input_imgs.shape}")
+            print(f"img_path:{img_paths}")
+
+            #
+            img_name = os.path.basename(img_paths[0])
+            # 保存inference后的bbox
+            dr_bbox_file = os.path.join(self.path_detection_results, 'labels',
+                                        img_name.replace('.jpg','.txt').replace('.png','.txt'))
+            # 保存inference后叠加bbox的图像
+            dr_img_file   = os.path.join(self.path_detection_results, 'images', img_name)
+            # debug
             frame = cv2.imread(img_paths[0])
-            img_show = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            cv2.imshow('frame', frame)
-            #cv2.waitKey(200)
-            # fill results
-            results = {}
-            results['processed_img'] = img_show
-            results['height'], results['width'] = img_show.shape[:2]
+            #cv2.imshow('cv read', frame)
+            #input_img = input_imgs[0].numpy().transpose((1,2,0)).copy()
+            #input_img = cv2.cvtColor(input_img, cv2.COLOR_RGB2BGR)
+            #cv2.imshow('dataload', input_img)
+            #cv2.waitKey(10000)
+            #return
             
-            '''
             # Configure input
             input_imgs = Variable(input_imgs.type(self.Tensor))
             # Get detections
+            detections = []
             with torch.no_grad():
                 detections = self.model(input_imgs)
                 detections = non_max_suppression(detections, self.conf_thres, self.nms_thres)
-                print(detections)
+                #print(detections)
             # Log progress
-            current_time = time.time()
-            fps          = 1/(current_time-prev_time)
-            prev_time    = current_time
+            #current_time = time.time()
+            #fps          = 1/(current_time-prev_time)
+            #prev_time    = current_time
             # Save image and detections
-            imgs.extend(img_paths[0])
-            img_detections.extend(detections)
-            '''
+            if detections[0] is not None:
+                img, bboxs = self.get_img_bboxs(frame, detections, self.img_size)
+                #img        = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                cv2.imwrite(dr_img_file, img)
+                #np.savetxt(dr_bbox_file, bboxs, delimiter=' ', fmt='%d')
+                self.save_txt(dr_bbox_file, bboxs, ["{:d}","{:.2f}","{:d}","{:d}","{:d}","{:d}"])
+                if self.flag_show:
+                    cv2.imshow('res', img)
+                    cv2.waitKey(10000)
+            return
 
 path_weights     = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\yolov3-tiny_99.pth"
 path_class_names = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\classes.names"
@@ -282,7 +298,7 @@ path_model_def   = r"config\yolov3-tiny.cfg"
 path_data_config = r"config\vis_drone.data"
 path_detection_results = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val\detection_results"
 
-if __name__ == "__main__":
+def test1():
     if os.path.exists(path_detection_results):
         shutil.rmtree(path_detection_results)
     os.mkdir(path_detection_results)
@@ -295,5 +311,21 @@ if __name__ == "__main__":
                             file_pretrained_weights=path_weights)
     yolodetect.evalute1()
 
+pic_path = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val\images"
+def test2():
+    if os.path.exists(path_detection_results):
+        shutil.rmtree(path_detection_results)
+    os.mkdir(path_detection_results)
+    os.mkdir(os.path.join(path_detection_results, 'labels'))
+    os.mkdir(os.path.join(path_detection_results, 'images'))
+    
+    yolodetect = YoloDetect(model_def=path_model_def,
+                            data_config=path_data_config,
+                            path_detection_results=path_detection_results,
+                            file_pretrained_weights=path_weights)
+    yolodetect.evalute2(pic_path)
+
+if __name__ == "__main__":
+    test1()
     
 

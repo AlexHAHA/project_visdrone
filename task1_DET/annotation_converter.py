@@ -46,10 +46,16 @@ class AnnotationConver(object):
         anno_files = os.listdir(self.path_source_anno)
         for anno_file in anno_files:
             bbox = np.loadtxt(os.path.join(self.path_source_anno, anno_file))
+            # 如果annotation文件中只有一行或什么都没有则应该进行相应处理。
+            if len(bbox.shape) == 1:
+                bbox = np.expand_dims(bbox, 0)
+            elif len(bbox.shape) == 0:
+                print(f"blank file:{os.path.basename(anno_file)}")
             img_file = os.path.join(self.path_source_img, os.path.basename(anno_file).replace('.txt','.jpg'))
             img = cv2.imread(img_file)
             img_size = img.shape[:2]
             #print(f"imgsize={img_size}")
+            #print(f"anno_file={os.path.basename(anno_file)}")
             #print(f"befor:bbox={bbox}")
             if self.unit_ct == unit_n2p:
                 #print(f"img_size={img_size}")
@@ -127,9 +133,9 @@ class AnnotationConver(object):
         return bbox
 
 def test1():
-    path_source_anno = r"C:\Users\Administrator\Desktop\labels"
-    path_source_img  = r"C:\Users\Administrator\Desktop\images"
-    path_target_anno = r"C:\Users\Administrator\Desktop\target_xyxy"
+    path_source_anno = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val\labels"
+    path_source_img  = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val\images"
+    path_target_anno = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val\target_xyxy"
     bbox_ct = ccwh_2_xyxy
     unit_ct = unit_n2p
     columns = [1,2,3,4]
@@ -147,5 +153,6 @@ def test2():
     ac = AnnotationConver(path_source_anno,path_source_img,path_target_anno,
                           bbox_ct, unit_ct, columns)
     ac.convert()        
+
 if __name__ == '__main__':
-    test2()
+    test1()
