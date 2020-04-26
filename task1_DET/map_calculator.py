@@ -32,9 +32,14 @@ class MAP_Calculator(object):
     """
     需要设定目标文件夹的基本路径，其目录如下：
     folder(path_base):
-    |--ground_truth
-    |--detection_results
-    |--images
+    |-- input/
+       |--ground_truth
+       |--detection_results
+       |--images
+    |-- output/
+       |--classes/
+       |--temp/
+       |--output.txt
     """
     MINOVERLAP = 0.5
     def __init__(self, path_mAP):
@@ -54,7 +59,7 @@ class MAP_Calculator(object):
         #创建output文件夹
         self.path_output = os.path.join(self.path_base, 'output')
         self.path_output_temp   = os.path.join(self.path_output, 'temp')
-        self.path_output_class  = os.path.join(self.path_output, 'class')
+        self.path_output_class  = os.path.join(self.path_output, 'classes')
         if os.path.exists(self.path_output):
             shutil.rmtree(self.path_output)
         os.mkdir(self.path_output)
@@ -148,6 +153,9 @@ class MAP_Calculator(object):
             #print(f"file_id:{file_id}, infos:{infos}")
             #if i%10 == 0:
             #    break
+            #print(f"{i},{txt_file}")
+            #print(f"gt_counter_per_class:{self.gt_counter_per_class}")
+            #print(f"gt_counter_images_per_class:{self.gt_counter_images_per_class}")
 
         #print(f'gt info={self.gt_files_infos}')
         self.gt_classes_idx = list(self.gt_counter_per_class.keys())
@@ -220,8 +228,9 @@ class MAP_Calculator(object):
             # 
             for class_idx in self.gt_classes_idx:
                 self.count_true_positives[class_idx] = 0
+                class_name = self.class_names[class_idx]
                 # Load detection-results of that class
-                dr_file = os.path.join(self.path_output_temp, f'{class_idx}_{self.class_names[class_idx]}_dr.json')
+                dr_file = os.path.join(self.path_output_temp, f'{class_idx}_{class_name}_dr.json')
                 dr_data = json.load(open(dr_file))
 
                 # Assign detection-results to ground-truth objects
@@ -308,14 +317,42 @@ class MAP_Calculator(object):
                 sum_AP += ap
 
                 #
-                text = "{0:.2f}%".format(ap*100) + " = " + self.class_names[class_idx] + " AP"
+                text = "{0:.2f}%".format(ap*100) + " = " + class_name + " AP"
                 rounded_prec = ['%.2f' % elem for elem in prec]
                 rounded_rec  = ['%.2f' % elem for elem in rec]
                 output_file.write(text + "\n Precision: " + str(rounded_prec) + 
                                         "\n Recall: " + str(rounded_rec))
                 output_file.write("\n")
                 self.ap_dictionary[class_idx] = ap
-        
+
+                #
+                # draw AP curve
+                plt.plot(rec, prec, '-o')
+                area_under_curve_x = mrec[:-1] + [mrec[-2]] + [mrec[-1]]
+                area_under_curve_y = mprec[:-1] + [0.0] + [mprec[-1]]
+                plt.fill_between(area_under_curve_x, 0, area_under_curve_y, alpha=0.2, edgecolor='r')
+                # set window title
+                fig = plt.gcf() # gcf - get current figure
+                fig.canvas.set_window_title('AP ' + class_name)
+                # set plot title
+                plt.title('class: ' + text)
+                #plt.suptitle('This is a somewhat long figure title', fontsize=16)
+                # set axis titles
+                plt.xlabel('Recall')
+                plt.ylabel('Precision')
+                # optional - set axes
+                axes = plt.gca() # gca - get current axes
+                axes.set_xlim([0.0,1.0])
+                axes.set_ylim([0.0,1.05]) # .05 to give some extra space
+                # Alternative option -> wait for button to be pressed
+                #while not plt.waitforbuttonpress(): pass # wait for key display
+                # Alternative option -> normal display
+                #plt.show()
+                # save the plot
+                fig.savefig(self.path_output + "\\classes\\" + class_name + ".png")
+                plt.cla() # clear axes for next plot
+
+
             self.mAP = sum_AP / self.n_classes
             text = "mAP = {0:.2f}%".format(self.mAP*100)
             output_file.write(text + "\n")
@@ -553,9 +590,11 @@ class MAP_Calculator(object):
         # close the plot
         plt.close()        
 
-path_mAP = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val\mAP"
+#path_mAP = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val\mAP"
+path_mAP = r"H:\deepLearning\dataset\visdrone_mAP\map_truckerror"
 if __name__ == '__main__':
     mc = MAP_Calculator(path_mAP)
+
     mc.ap_calculate()
     mc.draw_detection_results_info()
     mc.draw_ground_truth_info()
