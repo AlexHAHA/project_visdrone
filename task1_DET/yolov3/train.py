@@ -12,7 +12,7 @@ from models import *
 from utils.utils import *
 from utils.datasets import *
 from utils.parse_config import *
-from test import evaluate
+#from test import evaluate
 
 from terminaltables import AsciiTable
 
@@ -33,7 +33,7 @@ import torch.optim as optim
 path_checkpoints        = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\checkpoints"
 #path_outputs            = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\outputs"
 #path_pretrained_weights = r"D:\deeplearning\temp\yolov3-tiny.weights"
-path_pretrained_weights = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\checkpoints1\yolov3-tiny_46.pth"
+path_pretrained_weights = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train\yolov3\checkpoints\yolov3-tiny_67.pth"
 path_data_config        = r"config\vis_drone.data"
 path_model_def          = r"config\yolov3-tiny.cfg"
 # for yolov3 set batch_size=4, for yolov3-tiny set batch_size=8
