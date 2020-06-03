@@ -203,13 +203,13 @@ class VisDrone(object):
                 f.write(contents)
 
 if __name__ == '__main__':
-    path_visdrone = r"D:\CETCA_DeepLearning\datasets\visdrone\Task1-ObjectDetectionInImages\VisDrone2019-DET-train"
-    #path_visdrone = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-train"
+    #path_visdrone = r"D:\CETCA_DeepLearning\datasets\visdrone\Task1-ObjectDetectionInImages\VisDrone2019-DET-train"
+    path_visdrone = r"D:\CETCA_DeepLearning\datasets\visdrone\Task1-ObjectDetectionInImages\VisDrone2019-DET-val"
     #path_visdrone = r"H:\deepLearning\dataset\visdrone\Task 1 - Object Detection in Images\VisDrone2019-DET-val"
 
     visdrone = VisDrone(path_base=path_visdrone, interest_class_file='classes.txt')
-    visdrone.visdrone2yolo(-1)
+    #visdrone.visdrone2yolo(-1)
     #visdrone.generate_file('train.txt')
-    #visdrone.generate_file('valid.txt')
+    visdrone.generate_file('valid.txt')
     #visdrone.ppt()
 
